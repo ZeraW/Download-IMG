@@ -1,0 +1,118 @@
+public class DownloadImg {
+    Context context;
+
+    public DownloadImg(Context context) {
+        this.context = context;
+    }
+
+    public void DownloadImgFromUrl(String url){
+        Boolean check = requestPermission();
+        if (check){
+            Toast.makeText(context, "Permission Require", Toast.LENGTH_SHORT).show();
+        }else {
+            // Retrieves an image specified by the URL, displays it in the UI.
+            ImageRequest request = new ImageRequest(url,
+                    new Response.Listener<Bitmap>() {
+                        @Override
+                        public void onResponse(Bitmap bitmap) {
+
+                            storeImages(bitmap);
+                            Toast.makeText(context, "Download Success", Toast.LENGTH_SHORT).show();
+                        }
+                    }, 0, 0, null,
+                    new Response.ErrorListener() {
+                        public void onErrorResponse(VolleyError error) {
+                            Toast.makeText(context, "Fail", Toast.LENGTH_SHORT).show();
+
+                        }
+                    });
+            // Access the RequestQueue through your singleton class.
+            MySingleton.getInstance(context).addToRequestQueue(request);
+        }
+    }
+
+    private Boolean requestPermission() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ) {
+            ActivityCompat.requestPermissions((Activity) context,
+                    new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,}, 1);
+
+            return true;
+        }else {
+            return false;
+        }
+    }
+    private boolean storeImages(Bitmap imageBitmap) {
+        File file = null;
+        if (isExternalStorageWritable() && isExternalStorageReadable()) {
+            file = storeImageExternalMemory();
+        }
+        try {
+            assert file != null;
+            FileOutputStream out = new FileOutputStream(file);
+            imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+            out.flush();
+            out.close();
+            //updateImageTable(file, index);  // Implement Your own method to update ur DB table, U can access file location from DB table for future use of images
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    protected String getSaltString() {
+        String SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+        StringBuilder salt = new StringBuilder();
+        Random rnd = new Random();
+        while (salt.length() < 18) { // length of the random string.
+            int index = (int) (rnd.nextFloat() * SALTCHARS.length());
+            salt.append(SALTCHARS.charAt(index));
+        }
+        String saltStr = salt.toString();
+        return saltStr;
+
+    }
+    private File storeImageExternalMemory() {
+        File mediaStorageDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/Downloads");
+
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
+                return null;
+            }
+        }
+        File mediaFile;
+        mediaFile = new File(mediaStorageDir.getPath(), getSaltString()+ ".jpeg");
+        return mediaFile;
+    }
+
+    /* Checks if external storage is available for read and write */
+    private boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        return Environment.MEDIA_MOUNTED.equals(state);
+    }
+
+    /* Checks if external storage is available to at least read */
+    private boolean isExternalStorageReadable() {
+        String state = Environment.getExternalStorageState();
+        return Environment.MEDIA_MOUNTED.equals(state) || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state);
+    }
+
+    private Bitmap getResizedBitmap(Bitmap bm, int newHeight, int newWidth) {
+        int width = bm.getWidth();
+        int height = bm.getHeight();
+        float scaleWidth = ((float) newWidth) / width;
+        float scaleHeight = ((float) newHeight) / height;
+        // CREATE A MATRIX FOR THE MANIPULATION
+        Matrix matrix = new Matrix();
+        // RESIZE THE BIT MAP
+        matrix.postScale(scaleWidth, scaleHeight);
+
+        // "RECREATE" THE NEW BITMAP
+        Bitmap resizedBitmap = Bitmap.createBitmap(bm, 0, 0, width, height,
+                matrix, false);
+
+        return resizedBitmap;
+    }
+}
